@@ -2,9 +2,146 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Prototype System for Basins' Data Using</title>
+    <script src="/static/js/jquery.min.js"></script>
+    <script src="/static/js/vue.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/iview.css"/>
+    <script src="/static/js/iview.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="/static/css/leaflet.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/css/leaflet.pm.css"/>
+    <script src="/static/js/leaflet.js"></script>
+    <script src="/static/js/leaflet.pm.min.js"></script>
+    <style>
+        body{
+            margin: 0px
+        }
+        .map{
+            height: calc(100vh);
+        }
+        #dataControllerDiv{
+            position: fixed;
+            right: 10px;
+            bottom: 15px;
+            z-index: 999;
+            background-color:#f0f8ff80
+        }
+    </style>
 </head>
+
 <body>
-    <h1>Hello</h1>
+    <div id="vueApp">
+        <div class="map" id="leafletMap"></div>
+        <Card :bordered="false" id='dataControllerDiv'>
+            <strong slot="title">Data Layers</strong>
+            <Checkbox v-model="totalBasinCkb" @on-change="showTotalBasinLayer">Total Basins</Checkbox>
+        </Card>
+    </div>
+    <script>
+        var vueApp = new Vue({
+            el: "#vueApp",
+            mounted(){
+                this.initMap();
+                this.initController();
+                this.initLayers();
+            },
+            data(){
+                return {
+                    mapEl: null,
+                    baseLayers: null,
+                    drawingLayerGroup: null,
+                    totalBasinLayer: null,
+                    totalBasinCkb:false
+                }
+            },
+            methods:{
+                initMap(){
+                    this.mapEl = L.map('leafletMap').setView([-19.49766416813904, 46.64794921875], 6);
+                },
+                initController(){
+                    this.drawingLayerGroup = L.layerGroup([]);
+                    this.drawingLayerGroup.addTo(this.mapEl);
+                },
+                initLayers(){
+                    // 图层控件
+                    var mapboxVectorMap = 'https://api.mapbox.com/styles/v1/mapbox/streets-v11/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoiYm9zaDAxMTMiLCJhIjoiY2tsM3FicnprMTMyZTJvbzRpeXF4Y2ZoOSJ9.JFmrSXBF0bTcqyXXnWjLYQ';
+                    var vectorMap = L.tileLayer(mapboxVectorMap, { maxZoom: 18 });
+                    var vector = L.layerGroup([vectorMap]);
+
+                    
+                    var osmVectorMap = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+                    var osmVectorMap = L.tileLayer(osmVectorMap, { maxZoom: 18 });
+                    var vectorOSM = L.layerGroup([osmVectorMap]);
+                    
+                    var tdtImgMap =
+                        "http://t0.tianditu.gov.cn/img_w/wmts?tk=d6b0b78f412853967d91042483385d2c" +
+                        "&SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=img&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
+                    var tdtImgAno =
+                        "http://t0.tianditu.gov.cn/eia_w/wmts?tk=d6b0b78f412853967d91042483385d2c" +
+                        "&SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=eia&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
+                    var satelliteMap = L.tileLayer(tdtImgMap, {
+                        maxZoom: 18,
+                        attribution:
+                            '&copy; <a href="http://map.tianditu.gov.cn/">tianditu</a> contributors'
+                    });
+                    var satelliteAno = L.tileLayer(tdtImgAno, { maxZoom: 18 });
+                    var satellite = L.layerGroup([satelliteMap, satelliteAno]);
+
+                    var tdtTerrMap =
+                        "http://t0.tianditu.com/ter_w/wmts?tk=d6b0b78f412853967d91042483385d2c" +
+                        "&SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=ter&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
+                    var tdtTerrAno =
+                        "http://t0.tianditu.com/eta_w/wmts?tk=d6b0b78f412853967d91042483385d2c" +
+                        "&SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=eta&STYLE=default&TILEMATRIXSET=w&FORMAT=tiles&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}";
+                    var terrainMap = L.tileLayer(tdtTerrMap, {
+                        maxZoom: 18,
+                        attribution:
+                            '&copy; <a href="http://map.tianditu.gov.cn/">tianditu</a> contributors'
+                    });
+                    var terrainAno = L.tileLayer(tdtTerrAno, { maxZoom: 18 });
+                    var terrain = L.layerGroup([terrainMap, terrainAno]);
+
+                    this.baseLayers = {
+                        "Mapbox Vector map": vector,
+                        "OSM Vector map": vectorOSM,
+                        "TDT Satellite map": satellite,
+                        "TDT Terrain map": terrain
+                    };
+                    var overlayLayers = {};
+                    L.control.layers(this.baseLayers, overlayLayers).addTo(this.mapEl);
+                    this.baseLayers["Mapbox Vector map"].addTo(this.mapEl);
+
+                    // 比例尺
+                    L.control
+                        .scale({
+                            position: "bottomleft"
+                        })
+                        .addTo(this.mapEl);
+
+                    // 绘图控件
+                    var options = {
+                        position: "topleft", // toolbar position, options are 'topleft', 'topright', 'bottomleft', 'bottomright'
+                        drawMarker: true, // adds button to draw markers
+                        drawPolyline: false, // adds button to draw a polyline
+                        drawRectangle: true, // adds button to draw a rectangle
+                        drawPolygon: true, // adds button to draw a polygon
+                        drawCircle: false, // adds button to draw a cricle
+                        cutPolygon: false, // adds button to cut a hole in a polygon
+                        editMode: false, // adds button to toggle edit mode for all layers
+                        dragMode: false,
+                        removalMode: true // adds a button to remove layers
+                    };
+                    this.mapEl.pm.addControls(options);
+                },
+                showTotalBasinLayer(show){
+                    if(show){
+                        this.totalBasinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                    }
+                    else{
+                        this.totalBasinLayer.remove();
+                    }
+                }
+            }
+        })
+    </script>
 </body>
 </html>
