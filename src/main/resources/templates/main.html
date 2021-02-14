@@ -18,13 +18,16 @@
         .map{
             height: calc(100vh);
         }
-        #dataControllerDiv{
+        #controllerDiv{
             position: fixed;
             right: 10px;
-            bottom: 20px;
+            bottom: 30px;
             z-index: 999;
-            background-color:#f0f8ff80;
-            width: 15%;
+            width: 290px;
+        }
+        .controllerItemDiv{
+            background-color:#f0f8ff85;
+            margin-top: 15px;
         }
         .basinTypeDiv{
             padding: 0px 0px 0px 15px;
@@ -33,11 +36,32 @@
             width: 100px;
         }
         .divider{
-            margin: 5px 0;
+            margin: 10px 0;
             background-color: #96c6f7;
         }
         .basinLabel{
             width: 125px;
+        }
+        .btnHoverBlue:hover {
+            background-color: #2db7f5;
+            color: white;
+        }
+        .clickSwitch{
+            margin-left: 5px;
+        }
+        .uploadGeoJSON{
+            border: dashed 0.5px;
+            margin-left: 5px;
+        }
+        .downloadBtn{
+            margin-left: 5px;
+            width:50px;
+        }
+        .customDiv{
+            text-align: center;
+        }
+        .customBtn{
+            width:250px;
         }
     </style>
 </head>
@@ -45,34 +69,81 @@
 <body>
     <div id="vueApp">
         <div class="map" id="leafletMap"></div>
-        <Card :bordered="false" id='dataControllerDiv'>
-            <strong slot="title">Data Layers</strong>
-            <Checkbox v-model="riverCkb" @on-change="showRiverLayer">Rivers Layer</Checkbox>
-            <Divider size="small" class="divider"></Divider>
-            <Checkbox v-model="basinCkb" @on-change="showBasinsLayer">Basins Layer</Checkbox>
-            <div class="basinTypeDiv">
-                <Radio-group v-model="basinType" @on-change="changeBainsType">
-                    <Radio label="standard" class="basinLabel" :disabled = "!basinCkb">
-                        <span>Standard Basins</span>
-                    </Radio>
-                    <i-select class="basinSelecter" v-model="levelSelect" size="small" 
-                    :disabled="!(basinCkb&&basinType=='standard')"
-                    @on-change="changeStandardBasinsLevel">
-                        <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
-                    </i-select>
-                    <Radio label="custom" class="basinLabel" :disabled = "!basinCkb">
-                        <span>Basins & Lakes</span>
-                    </Radio>
-                    <i-select class="basinSelecter" v-model="levelSelectCustom" size="small" 
-                    :disabled="!(basinCkb&&basinType=='custom')"
-                    @on-change="changeCustomBasinsLevel">
-                        <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
-                    </i-select>
-                </Radio-group>
-            </div>
-            <Divider size="small" class="divider"></Divider>
-            <Checkbox v-model="wholeBasinCkb" @on-change="showWholeBasinLayer">Whole Basins Layer</Checkbox>
-        </Card>
+        <div id="controllerDiv">
+            <Card :bordered="false" class='controllerItemDiv'>
+                <strong slot="title">Data Layers Display</strong>
+                <Checkbox v-model="riverCkb" @on-change="showRiverLayer">Rivers Layer</Checkbox>
+                <Divider size="small" class="divider"></Divider>
+                <Checkbox v-model="basinCkb" @on-change="showBasinsLayer">Basins Layer</Checkbox>
+                <div class="basinTypeDiv">
+                    <Radio-group v-model="basinType" @on-change="changeBainsType">
+                        <Radio label="standard" class="basinLabel" :disabled = "!basinCkb">
+                            <span>Standard Basins</span>
+                        </Radio>
+                        <i-select class="basinSelecter" v-model="levelSelect" size="small" 
+                        :disabled="!(basinCkb&&basinType=='standard')"
+                        @on-change="changeStandardBasinsLevel">
+                            <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                        </i-select>
+                        <Radio label="custom" class="basinLabel" :disabled = "!basinCkb">
+                            <span>Basins & Lakes</span>
+                        </Radio>
+                        <i-select class="basinSelecter" v-model="levelSelectCustom" size="small" 
+                        :disabled="!(basinCkb&&basinType=='custom')"
+                        @on-change="changeCustomBasinsLevel">
+                            <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                        </i-select>
+                    </Radio-group>
+                </div>
+                <Divider size="small" class="divider"></Divider>
+                <Checkbox v-model="wholeBasinCkb" @on-change="showWholeBasinLayer">Whole Basins Layer</Checkbox>
+            </Card>
+            <Card :bordered="false" class='controllerItemDiv'>
+                <strong slot="title">Data Service Tools</strong>
+                <span>Query Basin Scope by Click:</span>
+                <i-switch class="clickSwitch" size="large" @on-change="changeQueryBasinBtn">
+                    <Icon slot="open" type="md-pin" size="20"></Icon>
+                    <Icon slot="close" type="md-close" size="20"></Icon>
+                </i-switch>
+                <Divider size="small" class="divider"></Divider>
+                <span>Download Data by Geometry:</span>
+                <div class="basinTypeDiv">
+                    <div>
+                        <span>Upload Custom Scope:</span>
+                        <i-button size="small" type="primary" ghost class="uploadGeoJSON" @click="uploadGeoJSON">
+                            <Icon type="ios-cloud-upload" size="15"></Icon>
+                            <span>Upload</span>
+                        </i-button>
+                    </div>
+                    <small>(Or Use Existing Geometry on the Map)</small>
+                    <div>
+                        <span>Select Data to Download:</span>
+                        <i-button size="small" type="success" ghost class="downloadBtn" @click="showDownloadModal">
+                            <Icon type="md-download" size="20"></Icon>
+                        </i-button>
+                    </div>
+                </div>
+            </Card>
+            <Card :bordered="false" class='controllerItemDiv'>
+                <strong slot="title">Custom Data Generation</strong>
+                <p>Reset the Parameters of Result Data:</p>
+                <div class="customDiv">
+                    <i-button size="small" class="customBtn" type="primary" ghost @click="showResetModal">
+                        <p>Setting & Download</p>
+                    </i-button>
+                    <div>
+                        <small>(Use the Data Provided)</small>
+                    </div>
+                </div>
+                <Divider size="small" class="divider"></Divider>
+                <p>Use Custom Data for Generation:</p>
+                <div class="customDiv">
+                    <i-button size="small" class="customBtn" type="primary" ghost @click="showCustomDataModal">
+                        <p>Upload & Setting & Download</p>
+                    </i-button>
+                </div>
+            </Card>
+        </div>
     </div>
     <script>
         var vueApp = new Vue({
@@ -97,8 +168,7 @@
                     levelSelect: 1,
                     levelSelectCustom: 1,
                     levelLayerList:[],
-                    standardBasinLayer: null,
-                    customBasinsLayer: null,
+                    basinLayer: null,
                     wholeBasinLayer: null,
                     wholeBasinCkb:false
                 }
@@ -185,13 +255,13 @@
                     // 绘图控件
                     var options = {
                         position: "topleft", // toolbar position, options are 'topleft', 'topright', 'bottomleft', 'bottomright'
-                        drawMarker: true, // adds button to draw markers
+                        drawMarker: false, // adds button to draw markers
                         drawPolyline: false, // adds button to draw a polyline
                         drawRectangle: true, // adds button to draw a rectangle
                         drawPolygon: true, // adds button to draw a polygon
                         drawCircle: false, // adds button to draw a cricle
                         cutPolygon: false, // adds button to cut a hole in a polygon
-                        editMode: false, // adds button to toggle edit mode for all layers
+                        editMode: true, // adds button to toggle edit mode for all layers
                         dragMode: false,
                         removalMode: true // adds a button to remove layers
                     };
@@ -214,10 +284,7 @@
                     else{
                         console.log('Hide Basins Layer.');
                         try{
-                            this.standardBasinLayer.remove();
-                        }catch{}
-                        try{
-                            this.customBasinsLayer.remove();
+                            this.basinLayer.remove();
                         }catch{}
                     }
                 },
@@ -235,24 +302,18 @@
                 },
                 changeStandardBasinsLevel(){
                     try{
-                        this.standardBasinLayer.remove();
-                    }catch{}
-                    try{
-                        this.customBasinsLayer.remove();
+                        this.basinLayer.remove();
                     }catch{}
                     var level = this.levelSelect;
-                    // this.standardBasinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                    // this.basinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
                     console.log('Show Standard Basin Layer in Level ' + level + '.');
                 },
                 changeCustomBasinsLevel(){
                     try{
-                        this.standardBasinLayer.remove();
-                    }catch{}
-                    try{
-                        this.customBasinsLayer.remove();
+                        this.basinLayer.remove();
                     }catch{}
                     var level = this.levelSelectCustom;
-                    // this.customBasinsLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                    // this.basinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
                     console.log('Show Basin Layer with Lakes in Level ' + level + '.');
                 },
                 showWholeBasinLayer(show){
@@ -262,6 +323,25 @@
                     else{
                         this.wholeBasinLayer.remove();
                     }
+                },
+                changeQueryBasinBtn(state){
+                    if(state){
+                        confirm('Start Click.');
+                    }else{
+                        console.log("Stop Click.");
+                    }
+                },
+                uploadGeoJSON(){
+                    confirm("Select File and Upload.");
+                },
+                showDownloadModal(){
+                    confirm("Show Download Setting Modal and Download.");
+                },
+                showResetModal(){
+                    confirm("Show Data Setting Modal and Download.");
+                },
+                showCustomDataModal(){
+                    confirm("Show Data Custom Setting Modal and Download.");
                 }
             }
         })
