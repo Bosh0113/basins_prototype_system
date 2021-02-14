@@ -21,9 +21,23 @@
         #dataControllerDiv{
             position: fixed;
             right: 10px;
-            bottom: 15px;
+            bottom: 20px;
             z-index: 999;
-            background-color:#f0f8ff80
+            background-color:#f0f8ff80;
+            width: 15%;
+        }
+        .basinTypeDiv{
+            padding: 0px 0px 0px 15px;
+        }
+        .basinSelecter{
+            width: 100px;
+        }
+        .divider{
+            margin: 5px 0;
+            background-color: #96c6f7;
+        }
+        .basinLabel{
+            width: 125px;
         }
     </style>
 </head>
@@ -33,12 +47,39 @@
         <div class="map" id="leafletMap"></div>
         <Card :bordered="false" id='dataControllerDiv'>
             <strong slot="title">Data Layers</strong>
-            <Checkbox v-model="totalBasinCkb" @on-change="showTotalBasinLayer">Total Basins</Checkbox>
+            <Checkbox v-model="riverCkb" @on-change="showRiverLayer">Rivers Layer</Checkbox>
+            <Divider size="small" class="divider"></Divider>
+            <Checkbox v-model="basinCkb" @on-change="showBasinsLayer">Basins Layer</Checkbox>
+            <div class="basinTypeDiv">
+                <Radio-group v-model="basinType" @on-change="changeBainsType">
+                    <Radio label="standard" class="basinLabel" :disabled = "!basinCkb">
+                        <span>Standard Basins</span>
+                    </Radio>
+                    <i-select class="basinSelecter" v-model="levelSelect" size="small" 
+                    :disabled="!(basinCkb&&basinType=='standard')"
+                    @on-change="changeStandardBasinsLevel">
+                        <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                    </i-select>
+                    <Radio label="custom" class="basinLabel" :disabled = "!basinCkb">
+                        <span>Basins & Lakes</span>
+                    </Radio>
+                    <i-select class="basinSelecter" v-model="levelSelectCustom" size="small" 
+                    :disabled="!(basinCkb&&basinType=='custom')"
+                    @on-change="changeCustomBasinsLevel">
+                        <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                    </i-select>
+                </Radio-group>
+            </div>
+            <Divider size="small" class="divider"></Divider>
+            <Checkbox v-model="wholeBasinCkb" @on-change="showWholeBasinLayer">Whole Basins Layer</Checkbox>
         </Card>
     </div>
     <script>
         var vueApp = new Vue({
             el: "#vueApp",
+            created(){
+                this.initLevelLabel();
+            },
             mounted(){
                 this.initMap();
                 this.initController();
@@ -49,11 +90,29 @@
                     mapEl: null,
                     baseLayers: null,
                     drawingLayerGroup: null,
-                    totalBasinLayer: null,
-                    totalBasinCkb:false
+                    riverLayer: null,
+                    riverCkb: false,
+                    basinCkb:false,
+                    basinType: 'standard',
+                    levelSelect: 1,
+                    levelSelectCustom: 1,
+                    levelLayerList:[],
+                    standardBasinLayer: null,
+                    customBasinsLayer: null,
+                    wholeBasinLayer: null,
+                    wholeBasinCkb:false
                 }
             },
             methods:{
+                initLevelLabel(){
+                    for(i=1;i<13;i++){
+                        item = {
+                            value: i,
+                            label: 'level ' + i
+                        }
+                        this.levelLayerList.push(item);
+                    }
+                },
                 initMap(){
                     this.mapEl = L.map('leafletMap').setView([-19.49766416813904, 46.64794921875], 6);
                 },
@@ -109,6 +168,12 @@
                     var overlayLayers = {};
                     L.control.layers(this.baseLayers, overlayLayers).addTo(this.mapEl);
                     this.baseLayers["Mapbox Vector map"].addTo(this.mapEl);
+                    
+                    // 底图均默认为0层级
+                    this.baseLayers["Mapbox Vector map"].setZIndex(0);
+                    this.baseLayers["OSM Vector map"].setZIndex(0);
+                    this.baseLayers["TDT Satellite map"].setZIndex(0);
+                    this.baseLayers["TDT Terrain map"].setZIndex(0);
 
                     // 比例尺
                     L.control
@@ -132,12 +197,70 @@
                     };
                     this.mapEl.pm.addControls(options);
                 },
-                showTotalBasinLayer(show){
+                showRiverLayer(show){
                     if(show){
-                        this.totalBasinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                        console.log('Show River Layer.');
+                        // this.riverLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
                     }
                     else{
-                        this.totalBasinLayer.remove();
+                        console.log('Hide River Layer.');
+                        // this.riverLayer.remove();
+                    }
+                },
+                showBasinsLayer(show){
+                    if(show){
+                        this.changeBainsType();
+                    }
+                    else{
+                        console.log('Hide Basins Layer.');
+                        try{
+                            this.standardBasinLayer.remove();
+                        }catch{}
+                        try{
+                            this.customBasinsLayer.remove();
+                        }catch{}
+                    }
+                },
+                changeBainsType(){
+                    switch(this.basinType){
+                        case 'standard':{
+                            this.changeStandardBasinsLevel();
+                            break;
+                        }
+                        case 'custom':{
+                            this.changeCustomBasinsLevel();
+                            break;
+                        }
+                    }
+                },
+                changeStandardBasinsLevel(){
+                    try{
+                        this.standardBasinLayer.remove();
+                    }catch{}
+                    try{
+                        this.customBasinsLayer.remove();
+                    }catch{}
+                    var level = this.levelSelect;
+                    // this.standardBasinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                    console.log('Show Standard Basin Layer in Level ' + level + '.');
+                },
+                changeCustomBasinsLevel(){
+                    try{
+                        this.standardBasinLayer.remove();
+                    }catch{}
+                    try{
+                        this.customBasinsLayer.remove();
+                    }catch{}
+                    var level = this.levelSelectCustom;
+                    // this.customBasinsLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                    console.log('Show Basin Layer with Lakes in Level ' + level + '.');
+                },
+                showWholeBasinLayer(show){
+                    if(show){
+                        this.wholeBasinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                    }
+                    else{
+                        this.wholeBasinLayer.remove();
                     }
                 }
             }
