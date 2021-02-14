@@ -63,6 +63,20 @@
         .customBtn{
             width:250px;
         }
+        .showGeoJSONInfoDiv{
+            margin-bottom: 5px;
+        }
+        .geoJSONInfo{
+            margin-left: 15px;
+            width: 250px;
+        }
+        .fileBtnHoverRed:hover {
+            background-color: #ed4014;
+            color: white;
+        }
+        .removeGeoJSONSelect{
+            margin-left: 5px;
+        }
     </style>
 </head>
 
@@ -110,7 +124,7 @@
                 <div class="basinTypeDiv">
                     <div>
                         <span>Upload Custom Scope:</span>
-                        <i-button size="small" type="primary" ghost class="uploadGeoJSON" @click="uploadGeoJSON">
+                        <i-button size="small" type="primary" ghost class="uploadGeoJSON" @click="showUploadGeoJSONModal">
                             <Icon type="ios-cloud-upload" size="15"></Icon>
                             <span>Upload</span>
                         </i-button>
@@ -144,6 +158,47 @@
                 </div>
             </Card>
         </div>
+        <Modal v-model="uploadGeoJSONModal" title="Upload GeoJSON" width="600" draggable>
+            <div class="showGeoJSONInfoDiv">
+                <span>Selected File:</span>
+                <i-input v-model="geoJSONName" readonly class="geoJSONInfo" size="small"></i-input>
+                <i-button v-if="geoJSONName!=''" size="small" 
+                class="fileBtnHoverRed" id="removeGeoJSONSelect"
+                @click="cancelGeoJSONSelect">
+                    <Icon type="md-close" size="20"></Icon>
+                </i-button>
+            </div>
+            <Upload :max-size="1024*1024" type="drag" :before-upload="gatherFile" action="-">
+                <div style="padding: 20px 0">
+                    <Icon type="ios-cloud-upload" size="50" style="color: #3399ff"></Icon>
+                    <p>
+                        Click or Drag GeoJSON File here to Upload.
+                    </p>
+                </div>
+            </Upload>
+            <div slot="footer">
+                <i-button @click="uploadGeoJSONModal=false">Cancel</i-button>
+                <i-button type="success" @click="uploadGeoJSON()">Upload</i-button>
+            </div>
+        </Modal>
+        <Modal v-model="downloadDataModal" title="Download Data" width="600" draggable>
+            <h1>Select Data and Download</h1>
+            <div slot="footer">
+                <i-button @click="downloadDataModal=false">Close</i-button>
+            </div>
+        </Modal>
+        <Modal v-model="resetDataModal" title="Reset the Parameters of Result Data" width="600" draggable>
+            <h1>Reset the Parameters of Result Data</h1>
+            <div slot="footer">
+                <i-button @click="resetDataModal=false">Close</i-button>
+            </div>
+        </Modal>
+        <Modal v-model="customDataModal" title="Use Custom Data for Generation" width="600" draggable>
+            <h1>Use Custom Data for Generation</h1>
+            <div slot="footer">
+                <i-button @click="customDataModal=false">Close</i-button>
+            </div>
+        </Modal>
     </div>
     <script>
         var vueApp = new Vue({
@@ -170,7 +225,13 @@
                     levelLayerList:[],
                     basinLayer: null,
                     wholeBasinLayer: null,
-                    wholeBasinCkb:false
+                    wholeBasinCkb:false,
+                    uploadGeoJSONModal:false,
+                    toUploadGeoJSON: null,
+                    geoJSONName:"",
+                    downloadDataModal:false,
+                    resetDataModal:false,
+                    customDataModal:false,
                 }
             },
             methods:{
@@ -331,17 +392,38 @@
                         console.log("Stop Click.");
                     }
                 },
+                showUploadGeoJSONModal(){
+                    this.toUploadGeoJSON = null;
+                    this.geoJSONName = "";
+                    this.uploadGeoJSONModal = true;
+                },
+                gatherFile(file){
+                    this.toUploadGeoJSON = file;
+                    this.geoJSONName = file.name;
+                },
+                cancelGeoJSONSelect(){
+                    this.toUploadGeoJSON = null;
+                    this.geoJSONName = "";
+                },
                 uploadGeoJSON(){
-                    confirm("Select File and Upload.");
+                    if(this.toUploadGeoJSON != null){
+                        confirm("Upload File.");
+                    }
+                    else{
+                        confirm("No File be Added.");
+                    }
                 },
                 showDownloadModal(){
-                    confirm("Show Download Setting Modal and Download.");
+                    this.downloadDataModal = true;
+                    console.log("Show Download Setting Modal and Download.");
                 },
                 showResetModal(){
-                    confirm("Show Data Setting Modal and Download.");
+                    this.resetDataModal = true;
+                    console.log("Show Data Setting Modal and Download.");
                 },
                 showCustomDataModal(){
-                    confirm("Show Data Custom Setting Modal and Download.");
+                    this.customDataModal = true;
+                    console.log("Show Data Custom Setting Modal and Download.");
                 }
             }
         })
