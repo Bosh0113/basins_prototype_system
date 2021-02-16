@@ -86,6 +86,15 @@
         .dataTag{
             height: fit-content;
         }
+        .runStatusDiv{
+            text-align: center;
+        }
+        .runStatus{
+            text-align: left;
+        }
+        .resetOperationBtn{
+            width:350px;
+        }
     </style>
 </head>
 
@@ -282,16 +291,35 @@
                 <i-button @click="downloadDataModal=false">Close</i-button>
             </div>
         </Modal>
-        <Modal v-model="resetDataModal" title="Reset the Parameters of Result Data" width="600" draggable>
-            <h1>Reset the Parameters of Result Data</h1>
+        <Modal v-model="resetDataModal" title="Reset the Parameters of Result Data" width="450" draggable>
+            <i-form ref="resetData" :model="resetData" label-position="top" :rules="resetValidate">
+                <Form-item label="River Definition Threshold (Minimal Upstream Area, Unit: km2)">
+                    <i-input v-model="resetData.riverThreshold"></i-input>
+                </Form-item>
+                <Form-item label="Minimal Area of Lakes (Unit: km2)">
+                    <i-input v-model="resetData.lakeThreshold"></i-input>
+                </Form-item>
+            </i-form>
+            <div class="runStatusDiv">
+                <i-button v-if="resetStatus=='resetSetting'" size="small" class="resetOperationBtn" type="primary" ghost @click="runResetData('resetData')">
+                    <p>Run</p>
+                </i-button>
+                <div v-else-if="resetStatus=='resetRunning'">
+                    <i-progress :percent="99.99" status="active" hide-info></i-progress>
+                    <span>Running...</span>
+                </div>
+                <i-button v-else-if="resetStatus=='reset4Download'" size="small" class="resetOperationBtn" type="success" ghost @click="downloadResetData()">
+                    <p>Download</p>
+                </i-button>
+            </div>
             <div slot="footer">
-                <i-button @click="resetDataModal=false">Close</i-button>
+                <i-button size="small" @click="resetDataModal=false">Close</i-button>
             </div>
         </Modal>
         <Modal v-model="customDataModal" title="Use Custom Data for Generation" width="600" draggable>
             <h1>Use Custom Data for Generation</h1>
             <div slot="footer">
-                <i-button @click="customDataModal=false">Close</i-button>
+                <i-button size="small" @click="customDataModal=false">Close</i-button>
             </div>
         </Modal>
     </div>
@@ -338,6 +366,20 @@
                     querySwitch:false,
                     queryType:"whole",
                     levelSelectQuery:1,
+                    resetData:{
+                        riverThreshold: 100,
+                        lakeThreshold: 1000
+                    },
+                    resetValidate:{
+                        riverThreshold:[
+                            { required: true, message: 'The value cannot be empty', trigger: 'blur' }
+                        ],
+                        lakeThreshold:[
+                            { required: true, message: 'The value cannot be empty', trigger: 'blur' }
+                        ]
+                    },
+                    resetStatus: 'resetSetting',
+                    resultDataUrl: '',
                 }
             },
             methods:{
@@ -535,7 +577,7 @@
                     }
                 },
                 showDownloadModal(){
-                    console.log('确定已经选择范围');
+                    confirm('确定已经选择范围');
                     this.downloadDataModal = true;
                 },
                 downloadDEM(){
@@ -589,8 +631,27 @@
                     }, 3000);
                 },
                 showResetModal(){
+                    confirm('确定已经选择范围');
+                    this.resetStatus="resetSetting";
                     this.resetDataModal = true;
                     console.log("Show Data Setting Modal and Download.");
+                },
+                runResetData(name){
+                    this.$refs[name].validate((valid) => {
+                        if (valid) {
+                            this.$Message.success('Please wait for Data!');
+                            this.resetStatus="resetRunning";
+                            console.log(this.resetData)
+                            window.setTimeout(()=>{
+                                this.resetStatus = "reset4Download";
+                                this.resultDataUrl="XXX";
+                            }, 3000);
+                        } else {
+                            confirm('Value Can not be Empty.');
+                    }});
+                },
+                downloadResetData(){
+                    confirm('Download Reset Data. Url: ' + this.resultDataUrl);
                 },
                 showCustomDataModal(){
                     this.customDataModal = true;
