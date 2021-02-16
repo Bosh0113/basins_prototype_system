@@ -49,6 +49,9 @@
         .clickSwitch{
             margin-left: 5px;
         }
+        .queryTypeDiv{
+            padding: 0px 0px 0px 15px;
+        }
         .uploadGeoJSON{
             border: dashed 0.5px;
             margin-left: 5px;
@@ -76,6 +79,12 @@
         }
         .removeGeoJSONSelect{
             margin-left: 5px;
+        }
+        .selectDataDiv{
+            padding: 0px 0px 0px 15px;
+        }
+        .dataTag{
+            height: fit-content;
         }
     </style>
 </head>
@@ -115,10 +124,25 @@
             <Card :bordered="false" class='controllerItemDiv'>
                 <strong slot="title">Data Service Tools</strong>
                 <span>Query Basin Scope by Click:</span>
-                <i-switch class="clickSwitch" size="large" @on-change="changeQueryBasinBtn">
+                <i-switch class="clickSwitch" size="large" @on-change="changeQueryBasinBtn" v-model="querySwitch">
                     <Icon slot="open" type="md-pin" size="20"></Icon>
                     <Icon slot="close" type="md-close" size="20"></Icon>
                 </i-switch>
+                <div class="queryTypeDiv">
+                    <Radio-group v-model="queryType" @on-change="changeQueryType">
+                        <Radio label="standard" class="basinLabel" :disabled = "!querySwitch">
+                            <span>Standard Basins</span>
+                        </Radio>
+                        <i-select class="basinSelecter" v-model="levelSelectQuery" size="small" 
+                        :disabled="!(querySwitch&&queryType=='standard')"
+                        @on-change="changeQueryBasinsLevel">
+                            <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                        </i-select>
+                        <Radio label="whole" class="basinLabel" :disabled = "!querySwitch">
+                            <span>Whole Basins</span>
+                        </Radio>
+                    </Radio-group>
+                </div>
                 <Divider size="small" class="divider"></Divider>
                 <span>Download Data by Geometry:</span>
                 <div class="basinTypeDiv">
@@ -181,8 +205,79 @@
                 <i-button type="success" @click="uploadGeoJSON()">Upload</i-button>
             </div>
         </Modal>
-        <Modal v-model="downloadDataModal" title="Download Data" width="600" draggable>
-            <h1>Select Data and Download</h1>
+        <Modal v-model="downloadDataModal" title="Select Data to Download" width="1000" draggable>
+            <h4>Basic Data:</h4>
+            <div class="selectDataDiv">
+                <span>Hydrologically Adjusted Elevations</span>
+                <i-button size="small" type="success" ghost class="downloadBtn" @click="downloadDEM" v-if="!loadingDEM">
+                    <Icon type="md-download" size="20"></Icon>
+                </i-button>
+                <i-button v-else loading shape="circle" type="success" ghost size="small"></i-button>
+                <br/>
+                <Tag class="dataTag" color="cyan">Adjusted elevation is reprepared in 4-byte float (float32). The elevations are adjusted to satisfy the condition 'downstream is not higher than its upstream' while minimizing the required modifications from the original DEM.
+                        The elevation above EGM96 geoid is represented in meter, and the vertical increment is set to 10cm. The undefined pixels (oceans) are represented by the value -9999.</Tag>
+                <br/>
+                <span>Flow Direction</span>
+                <i-button size="small" type="success" ghost class="downloadBtn" @click="downloadDir" v-if="!loadingDir">
+                    <Icon type="md-download" size="20"></Icon>
+                </i-button>
+                <i-button v-else loading shape="circle" type="success" ghost size="small"></i-button>
+                <br/>
+                <Tag class="dataTag" color="cyan">Flow direction is prepared in 1-byte SIGNED integer (int8). The flow direction is represented as follows.
+                        1: east, 2: southeast, 4: south, 8: southwest, 16: west, 32: northwest, 64: north. 128: northeast
+                        0: river mouth, -1: inland depression, -9: undefined (ocean)
+                        NOTE: If a flow direction file is opened as UNSIGNED integer, undefined=247 and inland depression=255.</Tag>
+                <br/>
+                <span>Upstream Drainage Area (Flow Accumulation Area)</span>
+                <i-button size="small" type="success" ghost class="downloadBtn" @click="downloadAcc" v-if="!loadingAcc">
+                    <Icon type="md-download" size="20"></Icon>
+                </i-button>
+                <i-button v-else loading shape="circle" type="success" ghost size="small"></i-button>
+                <br/>
+                <Tag class="dataTag" color="cyan">Drainage area is reprepared in 4-byte float (float32). The drainage area is represented in km2.
+                        The undefined pixels (oceans) are represented by the value -9999.</Tag>
+                <br/>
+                <span>Lakes (Cite HydroLAKES)</span>
+                <i-button size="small" type="success" ghost class="downloadBtn" @click="downloadLake" v-if="!loadingLake">
+                    <Icon type="md-download" size="20"></Icon>
+                </i-button>
+                <i-button v-else loading shape="circle" type="success" ghost size="small"></i-button>
+                <br/>
+                <Tag class="dataTag" color="cyan">Lakes are in a database aiming to provide the shoreline polygons of all global lakes with a surface area of at least 10 ha.</Tag>
+            </div>
+            <h4>Product Data:</h4>
+            <div class="selectDataDiv">
+                <span>Standard Basins</span>
+                <i-select class="basinSelecter" v-model="levelSelectDownload" size="small" >
+                    <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                </i-select>
+                <i-button size="small" type="success" ghost class="downloadBtn" @click="downloadBasins" v-if="!loadingBasin">
+                    <Icon type="md-download" size="20"></Icon>
+                </i-button>
+                <i-button v-else loading shape="circle" type="success" ghost size="small"></i-button>
+                <br/>
+                <Tag class="dataTag" color="cyan">Basins in Pfafstetter Code System (From level 1 to level 12). 
+                    A basin is divided into two sub-basins at every location where two river branches meet which each have an individual upstream area of at least 100 km2.
+                </Tag>
+                <br/>
+                <span>Slope Surface</span>
+                <i-button size="small" type="success" ghost class="downloadBtn" @click="downloadSlopeSurface" v-if="!loadingSlope">
+                    <Icon type="md-download" size="20"></Icon>
+                </i-button>
+                <i-button v-else loading shape="circle" type="success" ghost size="small"></i-button>
+                <br/>
+                <Tag class="dataTag" color="cyan">The slope surface region on which water flow directly into ​​the lake/reservoir after runoff. 
+                    In this database, the upstream area of slope surface region is less than 100km2.</Tag>
+                <br/>
+                <span>Rivers</span>
+                <i-button size="small" type="success" ghost class="downloadBtn" @click="downloadRivers" v-if="!loadingRiver">
+                    <Icon type="md-download" size="20"></Icon>
+                </i-button>
+                <i-button v-else loading shape="circle" type="success" ghost size="small"></i-button>
+                <br/>
+                <Tag class="dataTag" color="cyan">The rivers are definited by threshold from the database of Upstream Drainage Area (Flow Accumulation Area). 
+                    In this result database, the upstream area of rivers is less than 100km2. The rivers are represented by the value 1.</Tag>
+            </div>
             <div slot="footer">
                 <i-button @click="downloadDataModal=false">Close</i-button>
             </div>
@@ -230,8 +325,19 @@
                     toUploadGeoJSON: null,
                     geoJSONName:"",
                     downloadDataModal:false,
+                    levelSelectDownload: 1,
+                    loadingDEM:false,
+                    loadingDir:false,
+                    loadingAcc:false,
+                    loadingLake:false,
+                    loadingBasin:false,
+                    loadingSlope:false,
+                    loadingRiver:false,
                     resetDataModal:false,
                     customDataModal:false,
+                    querySwitch:false,
+                    queryType:"whole",
+                    levelSelectQuery:1,
                 }
             },
             methods:{
@@ -388,9 +494,24 @@
                 changeQueryBasinBtn(state){
                     if(state){
                         confirm('Start Click.');
+                        this.changeQueryType();
                     }else{
                         console.log("Stop Click.");
                     }
+                },
+                changeQueryType(){
+                    switch(this.queryType){
+                        case 'standard':{
+                            this.changeQueryBasinsLevel();
+                            break;
+                        }
+                        case 'whole':{
+                            console.log("Query Whole Basins.");
+                        }
+                    }
+                },
+                changeQueryBasinsLevel(){
+                    console.log("Query Standard Basins in level " + this.levelSelectQuery + ".");
                 },
                 showUploadGeoJSONModal(){
                     this.toUploadGeoJSON = null;
@@ -410,12 +531,62 @@
                         confirm("Upload File.");
                     }
                     else{
-                        confirm("No File be Added.");
+                        confirm("No File has be Added.");
                     }
                 },
                 showDownloadModal(){
+                    console.log('确定已经选择范围');
                     this.downloadDataModal = true;
-                    console.log("Show Download Setting Modal and Download.");
+                },
+                downloadDEM(){
+                    this.loadingDEM = true;
+                    window.setTimeout(()=>{
+                        this.loadingDEM = false;
+                        confirm('Download DEM.');
+                    }, 3000);
+                },
+                downloadDir(){
+                    this.loadingDir = true;
+                    window.setTimeout(()=>{
+                        this.loadingDir = false;
+                        confirm('Download Dir.');
+                    }, 3000);
+                },
+                downloadAcc(){
+                    this.loadingAcc = true;
+                    window.setTimeout(()=>{
+                        this.loadingDir = false;
+                        confirm('Download Acc.');
+                    }, 3000);
+                },
+                downloadLake(){
+                    this.loadingLake = true;
+                    window.setTimeout(()=>{
+                        this.loadingLake = false;
+                        confirm('Download Lakes.');
+                    }, 3000);
+                },
+                downloadBasins(){
+                    var level = this.levelSelectDownload;
+                    this.loadingBasin = true;
+                    window.setTimeout(()=>{
+                        this.loadingBasin = false;
+                        confirm('Download Basins Data in level ' + level + '.');
+                    }, 3000);
+                },
+                downloadSlopeSurface(){
+                    this.loadingSlope = true;
+                    window.setTimeout(()=>{
+                        this.loadingSlope = false;
+                        confirm('Download Slope Surface.');
+                    }, 3000);
+                },
+                downloadRivers(){
+                    this.loadingRiver = true;
+                    window.setTimeout(()=>{
+                        this.loadingRiver = false;
+                        confirm('Download Rivers.');
+                    }, 3000);
                 },
                 showResetModal(){
                     this.resetDataModal = true;
