@@ -95,6 +95,19 @@
         .resetOperationBtn{
             width:350px;
         }
+        .customOperationBtn{
+            width:350px;
+        }
+        .removeCustomSelect{
+            margin-left: 5px;
+        }
+        .customFileInput{
+            width: 280px;
+        }
+        .customUploadBtn{
+            display: inline-block;
+            margin-left: 10px;
+        }
     </style>
 </head>
 
@@ -288,7 +301,7 @@
                     In this result database, the upstream area of rivers is less than 100km2. The rivers are represented by the value 1.</Tag>
             </div>
             <div slot="footer">
-                <i-button @click="downloadDataModal=false">Close</i-button>
+                <i-button size="small" @click="downloadDataModal=false">Close</i-button>
             </div>
         </Modal>
         <Modal v-model="resetDataModal" title="Reset the Parameters of Result Data" width="450" draggable>
@@ -316,8 +329,49 @@
                 <i-button size="small" @click="resetDataModal=false">Close</i-button>
             </div>
         </Modal>
-        <Modal v-model="customDataModal" title="Use Custom Data for Generation" width="600" draggable>
-            <h1>Use Custom Data for Generation</h1>
+        <Modal v-model="customDataModal" title="Use Custom Data for Generation" width="450" draggable>
+            <i-form ref="customDataSetting" :model="customDataSetting" label-position="top" :rules="customValidate">
+                <Form-item label="DEM (Digital Elevation Model)">
+                    <i-input v-model="customDataSetting.demFileName" class="customFileInput"></i-input>
+                    <Upload v-if="customDataSetting.demFileName==''" :before-upload="gatherDEM" action="-" class="customUploadBtn">
+                        <i-button icon="md-cloud-upload" type="primary" ghost>Select File</i-button>
+                    </Upload>
+                    <i-button v-else
+                    class="fileBtnHoverRed" id="removeCustomSelect"
+                    @click="cancelDEMSelect">
+                        <Icon type="md-close" size="20"></Icon>
+                    </i-button>
+                </Form-item>
+                <Form-item label="Lakes (format: ESRI Shapefile in Zip file)">
+                    <i-input v-model="customDataSetting.lakeZipName" class="customFileInput"></i-input>
+                    <Upload v-if="customDataSetting.lakeZipName==''" :before-upload="gatherLakeZip" action="-" class="customUploadBtn">
+                        <i-button icon="md-cloud-upload" type="primary" ghost>Select File</i-button>
+                    </Upload>
+                    <i-button v-else 
+                    class="fileBtnHoverRed" id="removeCustomSelect"
+                    @click="cancelLakeZipSelect">
+                        <Icon type="md-close" size="20"></Icon>
+                    </i-button>
+                </Form-item>
+                <Form-item label="River Definition Threshold (Minimal Upstream Area, Unit: km2)">
+                    <i-input v-model="customDataSetting.riverThreshold"></i-input>
+                </Form-item>
+                <Form-item label="Minimal Area of Lakes (Unit: km2)">
+                    <i-input v-model="customDataSetting.lakeThreshold"></i-input>
+                </Form-item>
+            </i-form>
+            <div class="runStatusDiv">
+                <i-button v-if="customStatus=='customSetting'" size="small" class="customOperationBtn" type="primary" ghost @click="runCustomData('customDataSetting')">
+                    <p>Run</p>
+                </i-button>
+                <div v-else-if="customStatus=='customRunning'">
+                    <i-progress :percent="99.99" status="active" hide-info></i-progress>
+                    <span>Running...</span>
+                </div>
+                <i-button v-else-if="customStatus=='custom4Download'" size="small" class="customOperationBtn" type="success" ghost @click="downloadCustomData()">
+                    <p>Download</p>
+                </i-button>
+            </div>
             <div slot="footer">
                 <i-button size="small" @click="customDataModal=false">Close</i-button>
             </div>
@@ -367,8 +421,8 @@
                     queryType:"whole",
                     levelSelectQuery:1,
                     resetData:{
-                        riverThreshold: 100,
-                        lakeThreshold: 1000
+                        riverThreshold: 100.0,
+                        lakeThreshold: 1000.0
                     },
                     resetValidate:{
                         riverThreshold:[
@@ -380,6 +434,28 @@
                     },
                     resetStatus: 'resetSetting',
                     resultDataUrl: '',
+                    customDataSetting:{
+                        demFileName:'',
+                        lakeZipName:'',
+                        riverThreshold: 100.0,
+                        lakeThreshold: 1000.0
+                    },
+                    customValidate:{
+                        demFileName:[
+                            { required: true, message: 'The file is required', trigger: 'blur' }
+                        ],
+                        lakeZipName:[
+                            { required: true, message: 'The file is required', trigger: 'blur' }
+                        ],
+                        riverThreshold:[
+                            { required: true, message: 'The value cannot be empty', trigger: 'blur' }
+                        ],
+                        lakeThreshold:[
+                            { required: true, message: 'The value cannot be empty', trigger: 'blur' }
+                        ]
+                    },
+                    customStatus: 'customSetting',
+                    customDataUrl: '',
                 }
             },
             methods:{
@@ -655,8 +731,44 @@
                 },
                 showCustomDataModal(){
                     this.customDataModal = true;
+                    this.customDataSetting.demFileName = "";
+                    this.customDataSetting.lakeZipName = "";
+                    this.customStatus="customSetting";
                     console.log("Show Data Custom Setting Modal and Download.");
-                }
+                },
+                gatherDEM(file){
+                    this.customDEMFile = file;
+                    this.customDataSetting.demFileName = file.name;
+                },
+                cancelDEMSelect(){
+                    this.customDEMFile = null;
+                    this.customDataSetting.demFileName = "";
+                },
+                gatherLakeZip(file){
+                    this.customLakeZip = file;
+                    this.customDataSetting.lakeZipName = file.name;
+                },
+                cancelLakeZipSelect(){
+                    this.customLakeZip = null;
+                    this.customDataSetting.lakeZipName = "";
+                },
+                runCustomData(name){
+                    this.$refs[name].validate((valid) => {
+                        if (valid) {
+                            this.$Message.success('Please wait for Data!');
+                            this.customStatus="customRunning";
+                            console.log(this.customData)
+                            window.setTimeout(()=>{
+                                this.customStatus = "custom4Download";
+                                this.customDataUrl="XXX";
+                            }, 3000);
+                        } else {
+                            confirm('Value Can not be Empty.');
+                    }});
+                },
+                downloadCustomData(){
+                    confirm('Download Custom Data. Url: ' + this.customDataUrl);
+                },
             }
         })
     </script>
