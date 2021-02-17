@@ -387,6 +387,7 @@
                 this.initMap();
                 this.initController();
                 this.initLayers();
+                this.listenDraw();
             },
             data(){
                 return {
@@ -646,15 +647,26 @@
                 },
                 uploadGeoJSON(){
                     if(this.toUploadGeoJSON != null){
-                        confirm("Upload File.");
+                        this.drawingLayerGroup.clearLayers();
+                        var reader = new FileReader();
+                        reader.readAsText(this.toUploadGeoJSON);
+                        reader.onload = e => {
+                            var fileString = e.target.result;
+                            this.addGeoJSONToMap(fileString);
+                            this.uploadGeoJSONModal = false;
+                        }
                     }
                     else{
                         confirm("No File has be Added.");
                     }
                 },
                 showDownloadModal(){
-                    confirm('确定已经选择范围');
-                    this.downloadDataModal = true;
+                    if(this.drawingLayerGroup.getLayers().length){
+                        this.downloadDataModal = true;
+                    }
+                    else{
+                        confirm('Please Give a Scope on Map.');
+                    }
                 },
                 downloadDEM(){
                     this.loadingDEM = true;
@@ -707,10 +719,13 @@
                     }, 3000);
                 },
                 showResetModal(){
-                    confirm('确定已经选择范围');
-                    this.resetStatus="resetSetting";
-                    this.resetDataModal = true;
-                    console.log("Show Data Setting Modal and Download.");
+                    if(this.drawingLayerGroup.getLayers().length){
+                        this.resetStatus="resetSetting";
+                        this.resetDataModal = true;
+                    }
+                    else{
+                        confirm('Please Give a Scope on Map.');
+                    }
                 },
                 runResetData(name){
                     this.$refs[name].validate((valid) => {
@@ -734,7 +749,6 @@
                     this.customDataSetting.demFileName = "";
                     this.customDataSetting.lakeZipName = "";
                     this.customStatus="customSetting";
-                    console.log("Show Data Custom Setting Modal and Download.");
                 },
                 gatherDEM(file){
                     this.customDEMFile = file;
@@ -768,6 +782,34 @@
                 },
                 downloadCustomData(){
                     confirm('Download Custom Data. Url: ' + this.customDataUrl);
+                },
+                addGeoJSONToMap(GeoJSONStr){
+                    var file = JSON.parse(GeoJSONStr);
+                    var geoJsonLayer = L.geoJSON(file, {
+                        style: function(feature) {
+                            return { color: "blue" };
+                        }
+                    }).bindPopup(function(layer) {
+                        return layer.feature.properties.description;
+                    });
+                    this.loadFeatures(geoJsonLayer);
+                    //平移至数据位置
+                    this.mapEl.fitBounds(geoJsonLayer.getBounds());
+                },
+                loadFeatures(featureCollection) {
+                    featureCollection.eachLayer(layer => {
+                        this.drawingLayerGroup.addLayer(layer);
+                    });
+                },
+                listenDraw(){
+                    var _this = this;
+                    this.mapEl.on('pm:create', e=>{
+                        _this.drawingLayerGroup.clearLayers();
+                        _this.drawingLayerGroup.addLayer(e.layer);
+                    });
+                    this.mapEl.on('pm:remove', e=>{
+                        _this.drawingLayerGroup.clearLayers();
+                    });
                 },
             }
         })
