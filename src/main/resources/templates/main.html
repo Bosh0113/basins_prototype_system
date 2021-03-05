@@ -9,9 +9,11 @@
     <script src="/static/js/iview.min.js"></script>
     <link rel="stylesheet" type="text/css" href="/static/css/leaflet.css"/>
     <link rel="stylesheet" type="text/css" href="/static/css/leaflet.pm.css"/>
+    <link rel="stylesheet" type="text/css" href="/static/css/vuescroll.css"/>
     <script src="/static/js/leaflet.js"></script>
     <script src="/static/js/leaflet.pm.min.js"></script>
     <script src="/static/js/axios.min.js"></script>
+    <script src="/static/js/vuescroll.js"></script>
     <style>
         body{
             margin: 0px
@@ -22,13 +24,18 @@
         #controllerDiv{
             position: fixed;
             right: 10px;
-            bottom: 30px;
+            bottom: 25px;
             z-index: 999;
             width: 290px;
+            height: 90vh;
+        }
+        .__view{
+            display: flex;
+            flex-direction: column-reverse;
         }
         .controllerItemDiv{
             background-color:#f0f8ff85;
-            margin-top: 15px;
+            margin-top: 10px;
         }
         .basinTypeDiv{
             padding: 0px 0px 0px 15px;
@@ -37,7 +44,7 @@
             width: 100px;
         }
         .divider{
-            margin: 10px 0;
+            margin: 5px 0;
             background-color: #96c6f7;
         }
         .basinLabel{
@@ -116,94 +123,101 @@
     <div id="vueApp">
         <div class="map" id="leafletMap"></div>
         <div id="controllerDiv">
-            <Card :bordered="false" class='controllerItemDiv'>
-                <strong slot="title">Data Layers Display</strong>
-                <Checkbox v-model="riverCkb" @on-change="showRiverLayer">Rivers Layer</Checkbox>
-                <Divider size="small" class="divider"></Divider>
-                <Checkbox v-model="basinCkb" @on-change="showBasinsLayer">Basins Layer</Checkbox>
-                <div class="basinTypeDiv">
-                    <Radio-group v-model="basinType" @on-change="changeBainsType">
-                        <Radio label="standard" class="basinLabel" :disabled = "!basinCkb">
-                            <span>Standard Basins</span>
-                        </Radio>
-                        <i-select class="basinSelecter" v-model="levelSelect" size="small" 
-                        :disabled="!(basinCkb&&basinType=='standard')"
-                        @on-change="changeStandardBasinsLevel">
-                            <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
-                        </i-select>
-                        <Radio label="custom" class="basinLabel" :disabled = "!basinCkb">
-                            <span>Basins & Lakes</span>
-                        </Radio>
-                        <i-select class="basinSelecter" v-model="levelSelectCustom" size="small" 
-                        :disabled="!(basinCkb&&basinType=='custom')"
-                        @on-change="changeCustomBasinsLevel">
-                            <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
-                        </i-select>
-                    </Radio-group>
-                </div>
-                <Divider size="small" class="divider"></Divider>
-                <Checkbox v-model="wholeBasinCkb" @on-change="showWholeBasinLayer">Whole Basins Layer</Checkbox>
-            </Card>
-            <Card :bordered="false" class='controllerItemDiv'>
-                <strong slot="title">Data Service Tools</strong>
-                <span>Query Basin Scope by Click:</span>
-                <i-switch class="clickSwitch" size="large" @on-change="changeQueryBasinBtn" v-model="querySwitch">
-                    <Icon slot="open" type="md-pin" size="20"></Icon>
-                    <Icon slot="close" type="md-close" size="20"></Icon>
-                </i-switch>
-                <div class="queryTypeDiv">
-                    <Radio-group v-model="queryType" @on-change="changeQueryType">
-                        <Radio label="standard" class="basinLabel" :disabled = "!querySwitch">
-                            <span>Standard Basins</span>
-                        </Radio>
-                        <i-select class="basinSelecter" v-model="levelSelectQuery" size="small" 
-                        :disabled="!(querySwitch&&queryType=='standard')"
-                        @on-change="changeQueryBasinsLevel">
-                            <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
-                        </i-select>
-                        <Radio label="whole" class="basinLabel" :disabled = "!querySwitch">
-                            <span>Whole Basins</span>
-                        </Radio>
-                    </Radio-group>
-                </div>
-                <Divider size="small" class="divider"></Divider>
-                <span>Download Data by Geometry:</span>
-                <div class="basinTypeDiv">
-                    <div>
-                        <span>Upload Custom Scope:</span>
-                        <i-button size="small" type="primary" ghost class="uploadGeoJSON" @click="showUploadGeoJSONModal">
-                            <Icon type="ios-cloud-upload" size="15"></Icon>
-                            <span>Upload</span>
+            <vue-scroll :ops="scrollOps" id="controllerScroll">
+                <Card :bordered="false" class='controllerItemDiv'>
+                    <strong slot="title">Custom Data Generation</strong>
+                    <p>Reset the Parameters of Result Data:</p>
+                    <div class="customDiv">
+                        <i-button size="small" class="customBtn" type="primary" ghost @click="showResetModal">
+                            <p>Setting & Download</p>
+                        </i-button>
+                        <div>
+                            <small>(Use the Data Provided)</small>
+                        </div>
+                    </div>
+                    <Divider size="small" class="divider"></Divider>
+                    <p>Use Custom Data for Generation:</p>
+                    <div class="customDiv">
+                        <i-button size="small" class="customBtn" type="primary" ghost @click="showCustomDataModal">
+                            <p>Upload & Setting & Download</p>
                         </i-button>
                     </div>
-                    <small>(Or Use Existing Geometry on the Map)</small>
-                    <div>
-                        <span>Select Data to Download:</span>
-                        <i-button size="small" type="success" ghost class="downloadBtn" @click="showDownloadModal">
-                            <Icon type="md-download" size="20"></Icon>
-                        </i-button>
+                </Card>
+                <Card :bordered="false" class='controllerItemDiv'>
+                    <strong slot="title">Data Service Tools</strong>
+                    <span>Query Basin Scope by Click:</span>
+                    <i-switch class="clickSwitch" size="large" @on-change="changeQueryBasinBtn" v-model="querySwitch">
+                        <Icon slot="open" type="md-pin" size="20"></Icon>
+                        <Icon slot="close" type="md-close" size="20"></Icon>
+                    </i-switch>
+                    <div class="queryTypeDiv">
+                        <Radio-group v-model="queryType" @on-change="changeQueryType">
+                            <Radio label="standard" class="basinLabel" :disabled = "!querySwitch">
+                                <span>Standard Basins</span>
+                            </Radio>
+                            <i-select class="basinSelecter" v-model="levelSelectQuery" size="small" 
+                            :disabled="!(querySwitch&&queryType=='standard')"
+                            @on-change="changeQueryBasinsLevel">
+                                <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                            </i-select>
+                            <Radio label="upstream" class="basinLabel" :disabled = "!querySwitch">
+                                <span>Whole Upstream of Lakes</span>
+                            </Radio>
+                            <Radio label="whole" class="basinLabel" :disabled = "!querySwitch">
+                                <span>Whole Basins</span>
+                            </Radio>
+                        </Radio-group>
                     </div>
-                </div>
-            </Card>
-            <Card :bordered="false" class='controllerItemDiv'>
-                <strong slot="title">Custom Data Generation</strong>
-                <p>Reset the Parameters of Result Data:</p>
-                <div class="customDiv">
-                    <i-button size="small" class="customBtn" type="primary" ghost @click="showResetModal">
-                        <p>Setting & Download</p>
-                    </i-button>
-                    <div>
-                        <small>(Use the Data Provided)</small>
+                    <Divider size="small" class="divider"></Divider>
+                    <span>Download Data by Geometry:</span>
+                    <div class="basinTypeDiv">
+                        <div>
+                            <span>Upload Custom Scope:</span>
+                            <i-button size="small" type="primary" ghost class="uploadGeoJSON" @click="showUploadGeoJSONModal">
+                                <Icon type="ios-cloud-upload" size="15"></Icon>
+                                <span>Upload</span>
+                            </i-button>
+                        </div>
+                        <small>(Or Use Existing Geometry on the Map)</small>
+                        <div>
+                            <span>Select Data to Download:</span>
+                            <i-button size="small" type="success" ghost class="downloadBtn" @click="showDownloadModal">
+                                <Icon type="md-download" size="20"></Icon>
+                            </i-button>
+                        </div>
                     </div>
-                </div>
-                <Divider size="small" class="divider"></Divider>
-                <p>Use Custom Data for Generation:</p>
-                <div class="customDiv">
-                    <i-button size="small" class="customBtn" type="primary" ghost @click="showCustomDataModal">
-                        <p>Upload & Setting & Download</p>
-                    </i-button>
-                </div>
-            </Card>
+                </Card>
+                <Card :bordered="false" class='controllerItemDiv'>
+                    <strong slot="title">Data Layers Display</strong>
+                    <Checkbox v-model="riverCkb" @on-change="showRiverLayer">Rivers Layer</Checkbox>
+                    <Divider size="small" class="divider"></Divider>
+                    <Checkbox v-model="basinCkb" @on-change="showBasinsLayer">Basins Layer</Checkbox>
+                    <div class="basinTypeDiv">
+                        <Radio-group v-model="basinType" @on-change="changeBainsType">
+                            <Radio label="standard" class="basinLabel" :disabled = "!basinCkb">
+                                <span>Standard Basins</span>
+                            </Radio>
+                            <i-select class="basinSelecter" v-model="levelSelect" size="small" 
+                            :disabled="!(basinCkb&&basinType=='standard')"
+                            @on-change="changeStandardBasinsLevel">
+                                <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                            </i-select>
+                            <Radio label="custom" class="basinLabel" :disabled = "!basinCkb">
+                                <span>Basins & Lakes</span>
+                            </Radio>
+                            <i-select class="basinSelecter" v-model="levelSelectCustom" size="small" 
+                            :disabled="!(basinCkb&&basinType=='custom')"
+                            @on-change="changeCustomBasinsLevel">
+                                <i-option v-for="item in levelLayerList" :value="item.value" :key="item.value">{{ item.label }}</i-option>
+                            </i-select>
+                        </Radio-group>
+                    </div>
+                    <Divider size="small" class="divider"></Divider>
+                    <Checkbox v-model="wholeUpstreamCkb" @on-change="showWholeUpstreamLayer">Whole Upstream of Lake Layer</Checkbox>
+                    <Divider size="small" class="divider"></Divider>
+                    <Checkbox v-model="wholeBasinCkb" @on-change="showWholeBasinLayer">Whole Basins Layer</Checkbox>
+                </Card>
+            </vue-scroll>
         </div>
         <Modal v-model="uploadGeoJSONModal" title="Upload GeoJSON" width="600" draggable>
             <div class="showGeoJSONInfoDiv">
@@ -357,9 +371,9 @@
                 <Form-item label="River Definition Threshold (Minimal Upstream Area, Unit: km2)">
                     <i-input v-model="customDataSetting.riverThreshold"></i-input>
                 </Form-item>
-                <Form-item label="Minimal Area of Lakes (Unit: km2)">
+                <!-- <Form-item label="Minimal Area of Lakes (Unit: km2)">
                     <i-input v-model="customDataSetting.lakeThreshold"></i-input>
-                </Form-item>
+                </Form-item> -->
             </i-form>
             <div class="runStatusDiv">
                 <i-button v-if="customStatus=='customSetting'" size="small" class="customOperationBtn" type="primary" ghost @click="runCustomData('customDataSetting')">
@@ -403,8 +417,11 @@
                     levelSelectCustom: 1,
                     levelLayerList:[],
                     basinLayer: null,
+                    wholeUpstreamLayer:null,
+                    lakesLayer:null,
                     wholeBasinLayer: null,
                     wholeBasinCkb:false,
+                    wholeUpstreamCkb:false,
                     uploadGeoJSONModal:false,
                     toUploadGeoJSON: null,
                     geoJSONName:"",
@@ -440,7 +457,7 @@
                         demFileName:'',
                         lakeZipName:'',
                         riverThreshold: 100.0,
-                        lakeThreshold: 1000.0
+                        // lakeThreshold: 1000.0
                     },
                     customValidate:{
                         demFileName:[
@@ -458,6 +475,11 @@
                     },
                     customStatus: 'customSetting',
                     customDataUrl: '',
+                    scrollOps: {
+                        bar: {
+                            background: "#808695"
+                        }
+                    },
                 }
             },
             methods:{
@@ -556,12 +578,12 @@
                 },
                 showRiverLayer(show){
                     if(show){
-                        console.log('Show River Layer.');
-                        // this.riverLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                        // console.log('Show River Layer.');
+                        this.riverLayer = L.tileLayer('http://172.21.212.233:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
                     }
                     else{
-                        console.log('Hide River Layer.');
-                        // this.riverLayer.remove();
+                        // console.log('Hide River Layer.');
+                        this.riverLayer.remove();
                     }
                 },
                 showBasinsLayer(show){
@@ -603,6 +625,18 @@
                     // this.basinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
                     console.log('Show Basin Layer with Lakes in Level ' + level + '.');
                 },
+                showWholeUpstreamLayer(show){
+                    if(show){
+                        console.log('Show Lakes & their Upstream Layer.');
+                        // this.lakesLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                        // this.wholeUpstreamLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
+                    }
+                    else{
+                        console.log('Hide Lakes & their Upstream Layer.');
+                        // this.lakesLayer.remove();
+                        // this.wholeUpstreamLayer.remove();
+                    }
+                },
                 showWholeBasinLayer(show){
                     if(show){
                         this.wholeBasinLayer = L.tileLayer('http://172.21.213.155:8085/tile/{z}/{x}/{y}.png').addTo(this.mapEl);
@@ -623,6 +657,10 @@
                     switch(this.queryType){
                         case 'standard':{
                             this.changeQueryBasinsLevel();
+                            break;
+                        }
+                        case 'upstream':{
+                            console.log("Query Whole Upstream of Lakes.");
                             break;
                         }
                         case 'whole':{
@@ -822,6 +860,11 @@
                                 case "standard":{
                                     //各级流域范围接口待补充
                                     baseUrl = "/basins/querySubLevel" + this.levelSelectQuery;
+                                    break;
+                                }
+                                case "upstream":{
+                                    //水体上游范围接口待补充
+                                    baseUrl = "/basins/upstream";
                                     break;
                                 }
                                 case "whole":{
